@@ -1,11 +1,3 @@
-library(shiny)
-library(gridExtra)
-library(Cairo)
-library(plotly)
-library(ggplot2)
-library(scales)
-library(data.table)
-library(V8)
 
 # Define UI 
 shinyUI(fluidPage(
@@ -21,7 +13,7 @@ shinyUI(fluidPage(
            selectizeInput("medicament", "Sélection d'un médicament",
                           choices = unique(bdd$denomination[!is.na(bdd$denomination)]), 
                           selected = "", multiple = FALSE,
-                          options = NULL)
+                          options = NULL, width = "100%")
     ),
     column(8, h2(verbatimTextOutput("famille")))
     ),
@@ -47,8 +39,10 @@ shinyUI(fluidPage(
                            sidebarLayout(
                              sidebarPanel( width = 2,
                                            radioButtons("unite_plotType", "Affichage",
-                                                        c("Par produit"= "s", "Cumulé"= "c")
-                                           )
+                                                        c("Par produit"= "s", "Cumulé"= "c"),
+                                           ),
+                                           checkboxInput('unite_prop', 'En part de marché', 
+                                                         value = FALSE,)
                              ),
                              mainPanel(width = 10, 
                                        plotlyOutput("nb_unite"))
