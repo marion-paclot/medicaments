@@ -1,11 +1,9 @@
-
-
 space <- function(x, ...) { 
-  format(x, ..., big.mark = " ", scientific = FALSE, trim = TRUE)
+   format(x, ..., big.mark = " ", scientific = FALSE, trim = TRUE)
 }
 
 ajouter_titre <- function(titre, graphique){
-  graphique %>% 
+   graphique %>% 
     add_annotations(
       yref="paper", xref="paper", y=1.1, x=0, 
       text=titre, 
@@ -13,245 +11,275 @@ ajouter_titre <- function(titre, graphique){
     layout(title=FALSE)
 }
 
+
+definir_couleurs <- function (base, col_code, col_nom){
+   couleurs = unique(base[, c(col_code, col_nom, 'typemed', 'tri')])
+   
+   couleurs = couleurs[order(couleurs$tri),]
+   colnames(couleurs) = c('code', 'nom', 'typemed', 'tri')
+   couleurs = unique(couleurs[, c('code', 'nom', 'typemed')])
+   
+   couleurs$col = NA
+   couleurs$col[couleurs$typemed == 0] = colorRampPalette(c("pink", "red"))(sum(couleurs$typemed == 0))
+   couleurs$col[couleurs$typemed != 0] = colorRampPalette(c("blue", "green"))(sum(couleurs$typemed != 0))
+   
+   return(couleurs)
+}
+
+
 # Define server logic required to plot various variables against mpg
-shinyServer(function(input, output) {
-  
-    ### Extraction du numéro de la famille de générique
-    selection = reactive({
-      cat('**************', input$medicament, '****************\n')
+shinyServer(function(input, output, session) {
+ 
+   # Menu déroulant fournissant la liste des produits disponibles
+   # updateSelectizeInput(session, "specialite", 'Spécialité',
+   #                      choices = tousCIP, server = TRUE)
+   
+   selection = reactive({
+
+      cat('**************', denominationProduit, '****************\n')
       
-      # Numéro de famille associé à ces produits
-      num = unique(subset(bdd, denomination == input$medicament)$numFamille)
-      num = num[!is.na(num)]
-      
-      # Base des produits appartenant à la famille
-      if (length(num)>0){
-        bdd_produits = subset(bdd, numFamille == num)
-      }else{
-        num_cis = subset(bdd, denomination == input$medicament)$CIS
-        bdd_produits = subset(bdd, CIS %in% num_cis)
-        #Ajout d'un type et d'un tri si princeps sans famille générique
-        bdd_produits$type[is.na(bdd_produits$type)] = 0
-        bdd_produits$tri[is.na(bdd_produits$tri)] = c(1:nrow(bdd_produits))
+      if (input$specialite %in% unique(tousCIP)){
+         denominationProduit <<- input$specialite
       }
-      
-      # Existence de doublons, on suffixe par le numéro de tri
-      doublons = unique(bdd_produits[, c('nomCIS', 'tri')])
-      doublons = doublons$nomCIS[duplicated(doublons$nomCIS)]
-      
-      bdd_produits$NOM_CIP13 = ifelse(bdd_produits$NOM_CIP13 %in% doublons, 
-                                   paste0(bdd_produits$NOM_CIP13, '_', bdd_produits$tri),
-                                   bdd_produits$NOM_CIP13)
-      bdd_produits$nomCIS = ifelse(bdd_produits$nomCIS %in% doublons, 
-                                   paste0(bdd_produits$nomCIS, '_', bdd_produits$tri),
-                                   bdd_produits$nomCIS)
 
-      # # Base de la consommation des produits appartenant à la famille
-      bdd_conso = subset(conso, CIP13 %in% bdd_produits$CIP13)
-      bdd_conso$mois = as.Date(bdd_conso$mois)
+      #########################################################################
+      ### Requêtes vers la base de données
+      #########################################################################
       
-      # Jointure produit conso
-      conso_cip13 = merge(bdd_conso, bdd_produits, by = "CIP13", all= FALSE)
-      conso_cip13 = conso_cip13[with(conso_cip13, order(type, tri, mois)),]
-      conso_cip13$NOM_CIP13 = factor(conso_cip13$NOM_CIP13, levels = unique(conso_cip13$NOM_CIP13))
+      # Infos sur le médicament
+      reqReferentielProduit = glue_sql("SELECT DISTINCT *
+                              FROM referentiel 
+                              WHERE denomination IN ({denomination*});",
+                            denomination = denominationProduit,
+                          .con = con)
       
-      conso_cip13 = data.table(conso_cip13)
-      conso_cip13 = conso_cip13[, .(Nb= sum(Nb, na.rm = TRUE),  
-                                    Mt = sum(Mt, na.rm = TRUE), 
-                                    Base = sum(Base, na.rm = TRUE)), 
-                                by=list(NOM_CIP13, type, tri, mois, CIS, nomCIS, unite_final)] 
-      # S'il y a des noms doublés, on modifie le nom des variables NOM_CIP13 et nomCIS
+      referentielProduit <- set_utf8(dbGetQuery(con, reqReferentielProduit))
 
+      # Infos sur la famille
+      reqReferentielFamille = glue_sql("SELECT DISTINCT *
+                              FROM referentiel 
+                              WHERE numfamille IN ({numfamille*});",
+                                       numfamille = unique(referentielProduit$numfamille),
+                              .con = con)
+      referentielFamille <- set_utf8(dbGetQuery(con, reqReferentielFamille))
+      
+      # Consommaion de la famille
+      reqConsommationFamille = glue_sql("SELECT DISTINCT cip13, lieu, mois, 
+                           coalesce(nb, 0) AS nb, coalesce(mt, 0) AS mt, coalesce(base, 0) AS base
+                           FROM consommation 
+                           WHERE cip13 IN ({cip13*})
+                           ORDER BY mois;",
+                              cip13 = referentielFamille$cip13, 
+                              .con = con)
+      consommationFamille <- dbGetQuery(con, reqConsommationFamille)
+
+      
+      #########################################################################
+      ###### Retraitement des données 
+      #########################################################################
+    
+      consommationFamille$lieu = factor(consommationFamille$lieu, 
+                                        levels = c("Hopital", "Ville"))
+      consommationFamille$mois = factor(consommationFamille$mois)
+
+      # Identification des produits qui ont des doublons (deux formes identiques sauf le cip13)
+      # exemple RAMIPRIL ARROW LAB 5 MG CPR SEC 90
+      doublons = referentielFamille[ ave(1:nrow(referentielFamille), referentielFamille$nomcip, FUN=length) > 1, ]
+      if (nrow(doublons)>0){
+      for (nom in unique(doublons[, 'nomcip'])){
+        cip_doublons = doublons$cip13[doublons$nomcip == nom]
+        dernier_cip = max(cip_doublons)
+        for (cip in setdiff(cip_doublons, dernier_cip)){
+          consommationFamille$cip13 = gsub(cip, dernier_cip, consommationFamille$cip13)
+        }
+      }
+      # On efface la ligne qui a été fusionnée
+      referentielFamille = subset(referentielFamille, cip13 %in% unique(consommationFamille$cip13))
+      }
+    
+      # Jointure referentielFamille et consommationFamille par le cip13
+      consoEnrichie = merge(consommationFamille, referentielFamille, by = "cip13", all= FALSE)
+      consoEnrichie = consoEnrichie[with(consoEnrichie, order(typemed, tri, mois)),]
+      
+      consoEnrichie = data.table(consoEnrichie)
+      consoEnrichie = consoEnrichie[, .(nb= sum(nb, na.rm = TRUE),
+                                  mt = sum(mt, na.rm = TRUE),
+                                  base = sum(base, na.rm = TRUE)),
+                              by=list(cip13, nomcip, typemed, tri, mois, lieu, cis, nomcis, nbunite)]
+    
       # Conso unite
-      conso_cis <- conso_cip13 # Copie de la table
-      conso_cis = conso_cis[, .(Nb_unite = sum(Nb*unite_final, na.rm = TRUE), 
-                                  Mt = sum(Mt, na.rm = TRUE), 
-                                  Base = sum(Base, na.rm = TRUE)), 
-                              by=list(CIS, nomCIS, type, tri, mois)] 
-      conso_cis = conso_cis[with(conso_cip13, order(type, tri, mois)),]
-      conso_cis = subset(conso_cis, !is.na(nomCIS))
-      conso_cis$nomCIS = factor(conso_cis$nomCIS, levels = unique(conso_cis$nomCIS))
+      consoCisEnrichie <- consoEnrichie # Copie de la table
+      consoCisEnrichie = consoCisEnrichie[, .(nb = sum(nb*nbunite, na.rm = TRUE),
+                                mt = sum(mt, na.rm = TRUE),
+                                base = sum(base, na.rm = TRUE)),
+                            by=list(cis, nomcis, typemed, tri, mois, lieu)]
+      consoCisEnrichie = consoCisEnrichie[with(consoEnrichie, order(typemed, tri, mois)),]
+      consoCisEnrichie = subset(consoCisEnrichie, !is.na(nomcis))
       
-      # Ajout d'une part de marché
-      conso_cis = conso_cis[,part:= Nb_unite/sum(Nb_unite, na.rm = TRUE), by = list(mois)]
-      conso_cis = data.frame(conso_cis)
-      
-      
-      
-      # Couleur CIP
-      couleurs_cip = unique(conso_cip13[, c('NOM_CIP13', 'type', 'tri')])
-      couleurs_cip$col = NA
-      couleurs_cip$col[couleurs_cip$type == 0] = colorRampPalette(c("pink", "red"))(sum(couleurs_cip$type == 0))
-      couleurs_cip$col[couleurs_cip$type != 0] = colorRampPalette(c("blue", "green"))(sum(couleurs_cip$type != 0))
-      conso_cip13 = merge(conso_cip13, couleurs_cip)
-      conso_cip13 = conso_cip13[order(conso_cip13$tri),]
-      
-      # Couleur CIS
-      couleurs_cis = unique(conso_cis[, c('nomCIS', 'type', 'tri')])
-      couleurs_cis$col = NA
-      couleurs_cis$col[couleurs_cis$type == 0] = colorRampPalette(c("pink", "red"))(sum(couleurs_cis$type == 0))
-      couleurs_cis$col[couleurs_cis$type != 0] = colorRampPalette(c("blue", "green"))(sum(couleurs_cis$type != 0))
-      conso_cis = merge(conso_cis, couleurs_cis)
-      conso_cis = conso_cis[order(conso_cis$tri),]
-      
-      # Sortie
-      donnees  = list(num = num, 
-                      bdd_produits = bdd_produits, 
-                      bdd_conso = bdd_conso, 
-                      conso_cip13 = conso_cip13,
-                      conso_cis = conso_cis, 
-                      couleurs_cip = couleurs_cip, 
-                      couleurs_cis = couleurs_cis)
-      return(donnees)
-    })
+      consoCisEnrichie = data.frame(consoCisEnrichie)
+      consoEnrichie = data.frame(consoEnrichie)
     
+      ## Gestion des couleurs
+      couleursCIP = definir_couleurs(consoEnrichie, "cip13", "nomcip")
+      couleursCIS = definir_couleurs(consoCisEnrichie, "cis", "nomcis")
     
-    ############################################################################
-    ### Encart avec le nom de la famille de génériques
-    output$famille <- renderText({
-      bdd_produits = selection()$bdd_produits
-      num =  selection()$num
-      
-      print(num)
-      affichage_famille = paste0("Le médicament n'appartient pas à une famille de générique",
-                                 "\n", bdd_produits$denomination[1])
-      if (length(num) == 1){
-        affichage_famille = nom_famille$nomFamille[nom_famille$numFamille %in% num]
-      }
-      
-      affichage_famille
-    })
-    
+      return(list(
+            referentielProduit = referentielProduit,
+            referentielFamille = referentielFamille,
+            consommationFamille = consommationFamille,
+            consoEnrichie = consoEnrichie,
+            consoCisEnrichie = consoCisEnrichie,
+            couleursCIP = couleursCIP,
+            couleursCIS = couleursCIS
+                )
+           )
+  
+  })
+
+    # ############################################################################
+    # ### Encart avec le nom de la famille de génériques
+      output$contenuFamille <- renderText({
+         numFamilleProduit =  unique(selection()$referentielProduit$numfamille)
+         nomFamilleProduit = unique(selection()$referentielProduit$nomfamille)
+         contenu = nomFamilleProduit
+         if (grepl('^HF_', numFamilleProduit)){
+           contenu = paste0("Le médicament n'appartient pas à une famille de générique",
+                            "\r\n", contenu)
+         }
+         
+         return(contenu)
+      })
+
     ############################################################################
     ### Nb de boites vendues
-    output$nb_boite <- renderPlotly({
-      conso_cip13 = selection()$conso_cip13
-      couleurs = selection()$couleurs_cip$col
-      conso_cip13$tooltip = paste0(conso_cip13$NOM_CIP13,
-                                  '<br>', format(as.Date(conso_cip13$mois), format = "%B %Y"),
-                                  '<br>', conso_cip13$Nb)
-      
-      # Graphiques
-      p_prov = ggplot(data = conso_cip13, alpha = 0.9,
-                 aes(y = Nb, x = mois, group = NOM_CIP13, 
-                     color = NOM_CIP13, fill = NOM_CIP13, text = tooltip)) +   
-        scale_color_manual(values = couleurs) +
-        labs(y=" ", x= " ", title = "Prov") + 
-        theme(legend.title=element_blank()) +
-        scale_y_continuous(labels = space) +
-        scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month")
-      
-      # Une ligne par produit
-      if (input$boite_plotType == 's') { p = p_prov + geom_line()}
-      # En cumulé
-      if (input$boite_plotType == 'c') {
-        p = p_prov + geom_area(stat = "identity") + 
-          scale_fill_manual(values = couleurs)
-        }
-      
-      p = ggplotly(p, tooltip = c("text")) 
-      p = ajouter_titre("Nombre de boites remboursées - en ville", p)
-      })
-    
-
-    
-    ############################################################################
-    ### Nb d'unites vendues
-    output$nb_unite <- renderPlotly({
-      conso_cis = selection()$conso_cis
-      couleurs = selection()$couleurs_cis$col
-      conso_cis$tooltip = paste0(conso_cis$nomCIS,
-                                 '<br>', format(as.Date(conso_cis$mois), format = "%B %Y"),
-                                 '<br>', conso_cis$Nb_unite)
-      
-      # Graphiques
-      p_prov = ggplot(data = conso_cis, alpha = 0.9,
-                      aes(y = Nb_unite, x = mois, group = nomCIS, 
-                          color = nomCIS, fill = nomCIS, text = tooltip)) +   
-        scale_color_manual(values = couleurs) +
-        labs(y=" ", x= " ", title = "Prov") + 
-        theme(legend.title=element_blank()) +
-        scale_y_continuous(labels = space) +
-        scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month")
-      
-      
-      # Une ligne par produit
-      if (input$unite_plotType == 's') {
-        p = p_prov
-        if (! input$unite_prop){
-          p = p + geom_line()         
-        }
-        if (input$unite_prop){
-          p = p + geom_line(aes(y = part)) +
-          scale_y_continuous(labels = scales::percent)
-        }
+   output$consommation <- renderPlotly({
+   
+      #### Boite ou unite
+      if (input$boite_ou_unite == 'b') { 
+        conso = selection()$consoEnrichie
+        couleurs = selection()$couleursCIP
+        colnames(conso) = gsub('nomcip', 'nom', colnames(conso))
+        colnames(conso) = gsub('cip13', 'code', colnames(conso))
       }
-      # En cumulé
-      if (input$unite_plotType == 'c') {
-        p = p_prov
-        if (! input$unite_prop){
-          p = p + geom_area(stat = "identity")         
-        }
-        if (input$unite_prop){
-          p = p + geom_area(stat = "identity", aes(y = part)) +
-            scale_y_continuous(labels = scales::percent)
-          }
-        p = p+scale_fill_manual(values = couleurs)
-
+      if (input$boite_ou_unite == 'u') { 
+        conso = selection()$consoCisEnrichie
+        couleurs = selection()$couleursCIS
+        colnames(conso) = gsub('nomcis', 'nom', colnames(conso))
+        colnames(conso) = gsub('cis', 'code', colnames(conso))
       }
       
-      p = ggplotly(p, tooltip = c("text")) 
-      p = ajouter_titre("Nombre d'unités remboursées - en ville", p)
+      # Pour s'assurer que l'ordre est le bon
+      couleurs$nom = factor(couleurs$nom, levels = couleurs$nom)
+      conso$nom = factor(conso$nom, levels = couleurs$nom)
+      
+      
+      #### Hopital, ville, les deux
+      if (input$ville_ou_hopital == "h") {
+        conso = subset(conso, lieu == "Hopital")
+      }
+      if (input$ville_ou_hopital == "v") {
+        conso = subset(conso, lieu == "Ville")
+      }
+      # Si input$lieu == 'hv', pas de filtrage, mais on somme les valeurs
+      conso = data.table(conso)
+      conso = conso[, .(nb= sum(as.numeric(nb), na.rm = TRUE),
+                        mt = sum(as.numeric(mt), na.rm = TRUE),
+                        base = sum(as.numeric(base), na.rm = TRUE)),
+                    keyby=c('nom', 'code', 'mois')]
+      
+      
+      #### Volume ou part de marché
+      if (input$volume_ou_pdm == "pdm"){
+        conso = conso[, nb := nb/sum(nb, na.rm = TRUE), by = list(mois)]
+      }
 
-    })
-    
-    
-    ############################################################################
-    ### Depense
-    output$depense <- renderPlotly({
-      conso_cis = selection()$conso_cis
-      couleurs = selection()$couleurs_cis$col
-      conso_cis$tooltip = paste0(conso_cis$nomCIS,
-                                   '<br>', format(as.Date(conso_cis$mois), format = "%B %Y"),
-                                   '<br>', round(conso_cis$Mt))
-      # Graphique
-      p_prov = ggplot(data = conso_cis, alpha = 0.9,
-                 aes(y = Mt, x = mois, group = nomCIS, 
-                     color = nomCIS, fill = nomCIS, text = tooltip)) +
-        scale_color_manual(values = couleurs) +
-        labs(y=" ", x= " ", title = "Prov") + 
-        theme(legend.title=element_blank()) +
-        scale_y_continuous(labels = space) +
+      ## Graphiques
+      conso = data.frame(conso)
+      conso$mois = as.Date(conso$mois)
+      conso$tooltip = paste0(conso$nom,
+                             '<br>', format(as.Date(conso$mois), format = "%B %Y"),
+                             '<br>', conso$nb)
+      
+      p_prov = ggplot(data = conso, alpha = 0.9,
+                      aes(y = nb, x = mois, group = nom,
+                          color = nom, fill = nom, text = tooltip)) 
+      p_prov = p_prov +
+        scale_color_manual(breaks = levels(couleurs$nom), values= couleurs$col) +
+        labs(y=" ", x= " ", title = " ") +
+        theme(legend.title=element_blank(), legend.text=element_text(size=7)) +
         scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month")
+      
+      # Affichage des labels en % si part de marché
+      if (input$volume_ou_pdm == "pdm"){
+        p_prov = p_prov + 
+          scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,1))
+      }
+      if (input$volume_ou_pdm == "volume"){
+        p_prov = p_prov + scale_y_continuous(labels = space)
+      }
       
       
       # Une ligne par produit
-      if (input$depense_plotType == 's') { p = p_prov + geom_line()}
+      if (input$individuel_ou_cumul == 'p') { p = p_prov + geom_line()}
       # En cumulé
-      if (input$depense_plotType == 'c') {
-        p = p_prov + geom_area(stat = "identity") + 
-          scale_fill_manual(values = couleurs)
+      if (input$individuel_ou_cumul == 'c') {
+        p = p_prov + geom_area(stat = "identity") +
+          scale_fill_manual(breaks = levels(couleurs$nom), values= couleurs$col)
         }
-
+      
       p = ggplotly(p, tooltip = c("text"))
-      p = ajouter_titre("Montant remboursé - en ville", p)
-    })
+   })
+   
+
+    # ############################################################################
+    # ### Depense
+    # output$depense <- renderPlotly({
+    #   consoCisEnrichie = selection()$consoCisEnrichie
+    #   couleurs = selection()$couleursCIS$col
+    #   consoCisEnrichie$tooltip = paste0(consoCisEnrichie$nomcis,
+    #                                '<br>', format(as.Date(consoCisEnrichie$mois), format = "%B %Y"),
+    #                                '<br>', round(consoCisEnrichie$Mt))
+    #   # Graphique
+    #   p_prov = ggplot(data = consoCisEnrichie, alpha = 0.9,
+    #              aes(y = Mt, x = mois, group = nomcis,
+    #                  color = nomcis, fill = nomcis, text = tooltip)) +
+    #     scale_color_manual(values = couleurs) +
+    #     labs(y=" ", x= " ", title = "Prov") +
+    #     theme(legend.title=element_blank()) +
+    #     scale_y_continuous(labels = space) +
+    #     scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month")
+    # 
+    # 
+    #   # Une ligne par produit
+    #   if (input$affichage == 's') { p = p_prov + geom_line()}
+    #   # En cumulé
+    #   if (input$affichage == 'c') {
+    #     p = p_prov + geom_area(stat = "identity") +
+    #       scale_fill_manual(values = couleurs)
+    #     }
+    # 
+    #   p = ggplotly(p, tooltip = c("text"))
+    #   p = ajouter_titre("Montant remboursé - en ville", p)
+    # })
+    # 
+
+
     
-    # Prix
-    output$prix <- renderDataTable({
-      bdd_produits = selection()$bdd_produits
-      col_a_garder = c('CIS', 'CIP13', 'NOM_CIP13', 'statut', 'type', 'tri',
-                       'agrement', 'taux', 'prixTotal', 'honoraires',
-                       'unite_final', 'contenance')
-      bdd_produits = bdd_produits[, col_a_garder]
-      colnames(bdd_produits) = gsub('unite_final', 'unités', colnames(bdd_produits))
-      colnames(bdd_produits) = gsub('NOM_CIP13', 'nom', colnames(bdd_produits))
-      
-      bdd_produits = bdd_produits[order(bdd_produits$tri),]
-      bdd_produits$tri = NULL
-      print(head(bdd_produits))
-      bdd_produits
-    })
+    # # Prix
+    # output$prix <- renderDataTable({
+    #   referentielFamille = selection()$referentielFamille
+    #   col_a_garder = c('cis', 'cip13', 'nomcip', 'statut', 'typemed', 'tri',
+    #                    'agrement', 'taux', 'prixTotal', 'honoraires',
+    #                    'unite_final', 'contenance')
+    #   referentielFamille = referentielFamille[, col_a_garder]
+    #   colnames(referentielFamille) = gsub('unite_final', 'unités', colnames(referentielFamille))
+    #   colnames(referentielFamille) = gsub('nomcip', 'nom', colnames(referentielFamille))
+    #   
+    #   referentielFamille = referentielFamille[order(referentielFamille$tri),]
+    #   referentielFamille$tri = NULL
+    #   print(head(referentielFamille))
+    #   referentielFamille
+    # })
     
 })
 
