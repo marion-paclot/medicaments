@@ -205,7 +205,7 @@ shinyServer(function(input, output, session) {
                           color = nom, fill = nom, text = tooltip)) 
       p_prov = p_prov +
         scale_color_manual(breaks = levels(couleurs$nom), values= couleurs$col) +
-        labs(y=" ", x= " ", title = " ") +
+        labs(y=" ", x= " ", title = " ") + ylim(0,max(conso$mois)) +
         theme(legend.title=element_blank(), legend.text=element_text(size=7)) +
         scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month")
       
