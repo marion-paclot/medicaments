@@ -205,9 +205,9 @@ shinyServer(function(input, output, session) {
                           color = nom, fill = nom, text = tooltip)) 
       p_prov = p_prov +
         scale_color_manual(breaks = levels(couleurs$nom), values= couleurs$col) +
-        labs(y=" ", x= " ", title = " ") + ylim(0,max(conso$mois)) +
+        labs(y=" ", x= " ", title = " ") + 
         theme(legend.title=element_blank(), legend.text=element_text(size=7)) +
-        scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month")
+        scale_x_date(date_breaks = "1 year", date_labels = "%Y-%m", date_minor_breaks = "1 month") 
       
       # Affichage des labels en % si part de marché
       if (input$volume_ou_pdm == "pdm"){
@@ -215,7 +215,7 @@ shinyServer(function(input, output, session) {
           scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0,1))
       }
       if (input$volume_ou_pdm == "volume"){
-        p_prov = p_prov + scale_y_continuous(labels = space)
+        p_prov = p_prov + scale_y_continuous(labels = space, limits = c(0, max(conso$nb)))
       }
       
       
