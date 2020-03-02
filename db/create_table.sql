@@ -34,6 +34,7 @@ CREATE TABLE public.referentiel
 	typemed INTEGER, 
 	tri INTEGER,
 	nomcip CHARACTER VARYING,
+	atc CHARACTER VARYING,
 	nbunite INTEGER,
 	numfamilledci CHARACTER VARYING
 

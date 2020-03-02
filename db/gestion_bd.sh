@@ -11,5 +11,5 @@ sudo -u postgres psql -d medicaments -f "db/create_table.sql"
 # Chargement des données 
 sudo -u postgres psql medicaments -c "COPY consommation FROM '/srv/shiny-server/medicaments/data/importbdd/consommation.csv' 
 			WITH (FORMAT CSV, DELIMITER ',', NULL 'NA', HEADER, encoding 'UTF8', ESCAPE '''') ;"
-sudo -u postgres psql medicaments -c "COPY referentiel FROM '/srv/shiny-server/medicaments/data/importbdd/medicaments.csv' 
+sudo -u postgres psql medicaments -c "COPY referentiel FROM '/srv/shiny-server/medicaments/data/importbdd/referentiel.csv' 
 			WITH (FORMAT CSV, DELIMITER ',', NULL 'NA', HEADER, encoding 'UTF8', ESCAPE '''') ;"
