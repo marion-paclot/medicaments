@@ -12,8 +12,6 @@ dir.create('data')
 dir.create('data/classification')
 dir.create('data/medicAM')
 
-fichiersMensuels = list.files('data/medicAM/') # Fichiers conso déjà présents
-
 ################################################################################
 # Chargement des données issues de la base publique du médicament
 # Mise à jour régulière de ces fichiers
@@ -37,29 +35,40 @@ page2019 = htmlParse(url2019)
 liens  = unlist(xpathSApply(page2019, path = "//a",xmlGetAttr,"href"))
 urls = paste0(url_ameli, liens[grepl(url_conso, liens)])
 
+fichiersMensuels = list.files('data/medicAM/') # Fichiers conso déjà présents
+millesimes = gsub('.*(20[0-9]{2}).*([1-2]{1}).*', '\\1\\2', fichiersMensuels)
+
 for (url in urls){
    pageAnnee = htmlParse(getURL(url))
-   liens  = unlist(xpathSApply(pageAnnee, path = "//a",xmlGetAttr,"href"))
-   fichiers = liens[grepl('Medic_AM_mensuel', liens)]
-   for (fichier in fichiers){
-      nomFichierZip = gsub('.*\\/(.*)', '\\1', fichier)
-      nomFichier = gsub('\\.zip', '\\.xls', nomFichierZip)
-      
-      # Si le fichier est déjà présent dans le dossier, on passe au lien suivant
-      if (nomFichier %in% fichiersMensuels){
+   liens = unlist(xpathApply(pageAnnee, "//a[@href]",xmlGetAttr, 'href'))
+   liens = liens[grepl('Medic_AM_mensuel', liens)]
+   for (lien in liens){
+      nom = gsub('.*(Medic_AM_mensuel.*zip).*', '\\1', lien)
+      nomComplet = paste0('data/medicAM/', nom)
+      millesime = gsub('.*(20[0-9]{2}).*([1-2]{1}).*', '\\1\\2', nom)
+      if (millesime %in% millesimes){ # Fichier déjà présent
          next()
       }
-      
+      if (millesime < '20151'){ # Autre nomenclature --> non exploitable
+         next()
+      }
       # Chargement
-      download.file(paste0(url_ameli, fichier), paste0('data/medicAM/', nomFichierZip))
+      download.file(paste0(url_ameli, lien), nomComplet)
       
-      # Dézip
-      unzip(paste0('data/medicAM/', nomFichierZip), overwrite = TRUE,
-            junkpaths = FALSE, exdir = 'data/medicAM', unzip = "internal",
-            setTimes = FALSE)
-      file.remove(paste0('data/medicAM/', nomFichierZip))
+      # Dézip - Impossible de nommer correctement le fichier au moment du dezip
+      # On renomme a posteriori le fichier. Attention, la virgule est un caractère spécial
+      nomDezip = unzip(nomComplet, list = TRUE)$Name[1]
+      vraiNom = gsub('‚', 'é', nomDezip)
+      unzip(paste0('data/medicAM/', nom), overwrite = TRUE,
+            junkpaths = FALSE, exdir = 'data/medicAM', unzip = "internal")
+      file.rename(paste0('data/medicAM/', nomDezip), paste0('data/medicAM/', vraiNom))
+      
+      # On efface le zip
+      file.remove(nomComplet)
+      
    }
 }
+
 
 ################################################################################
 # Chargement de la liste des codes ATC contenant les MITM (médicaments 
