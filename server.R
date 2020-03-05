@@ -166,7 +166,7 @@ shinyServer(function(input, output, session) {
    #############################################################################
    # CCP et brevets
    output$notice <- renderText({
-      doc_number = selection()$doc_number
+      doc_number = unique(selection()$doc_number)
       
       if (length(doc_number) == 0){
          notice = "<div>Pas de CCP associé</div>"
