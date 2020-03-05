@@ -28,8 +28,8 @@ ui <- dashboardPage(
                      multiple = FALSE,  width = "100%"),
       br(),
       menuItem("Consommation", tabName = "consommation", icon = icon("user-circle")),
-      menuItem("Dépense", tabName = "depense", icon = icon("user-circle"))
-      # menuItem("Brevet", tabName = "brevet", icon = icon("user-circle"))
+      menuItem("Dépense", tabName = "depense", icon = icon("user-circle")),
+      menuItem("Brevets et CCP", tabName = "brevet", icon = icon("user-circle"))
       
       )
     ),
@@ -78,6 +78,14 @@ ui <- dashboardPage(
           tabName = "depense",
           mainPanel(width = 12
           )
+        ),
+        
+        # Brevets  ============================
+        tabItem(
+           tabName = "brevet",
+           mainPanel(width = 12,
+                     htmlOutput("notice", )
+           )
         )
       )
     )
