@@ -29,7 +29,9 @@ ui <- dashboardPage(
       br(),
       menuItem("Consommation", tabName = "consommation", icon = icon("user-circle")),
       menuItem("Dépense", tabName = "depense", icon = icon("user-circle")),
-      menuItem("Brevets et CCP", tabName = "brevet", icon = icon("user-circle"))
+      menuItem("Brevets et CCP", tabName = "brevet", icon = icon("user-circle")),
+      menuItem("A propos", tabName = "faq", icon = icon("question-circle"))
+      
       
       )
     ),
@@ -44,19 +46,15 @@ ui <- dashboardPage(
                  font-size: 14px; 
                       font-family:  'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;}"),
       
-
-      
-      mainPanel(width = 12,
-         verbatimTextOutput('contenuFamille')
-         ),
-    
       tabItems(
         
-        # Consommation par boite ============================
+        # Consommation ============================
         tabItem(
           tabName = "consommation",
           mainPanel(
+             
             width = 12,
+            verbatimTextOutput('contenuFamille'),
             fluidRow(column(3, radioButtons("individuel_ou_cumul", "Consommation",
                                    c("Par produit"= "p", "En cumulé"= "c"),
                                    inline = TRUE)),
@@ -84,7 +82,14 @@ ui <- dashboardPage(
         tabItem(
            tabName = "brevet",
            mainPanel(width = 12,
-                     htmlOutput("notice", )
+                     htmlOutput("notice")
+           )
+        ),
+        # FAQ  ============================
+        tabItem(
+           tabName = "faq",
+           mainPanel(width = 12,
+                     HTML(faq)
            )
         )
       )

@@ -1,0 +1,31 @@
+<h3> Quelques informations sur l'origine de ce site</h3>
+<p><strong>Cette application a été développée en utilisant uniquement des données disponibles en open data :</strong></p>
+<ul type="disc">
+  <li>Référentiel des médicaments de l'ANSM : 
+    <a href="http://base-donnees-publique.medicaments.gouv.fr/telechargement.php">http://base-donnees-publique.medicaments.gouv.fr/telechargement.php</a>. Cette base étant mise à jour régulièrement, l’application ne prend pas immédiatement la dernière version disponible.
+  </li>
+  <li>Consommation mensuelle de médicaments de la CPAM (Medic'AM) depuis 2015 : 
+    <a href="https://www.ameli.fr/l-assurance-maladie/statistiques-et-publications/donnees-statistiques/medicament/index.php">https://www.ameli.fr/l-assurance-maladie/statistiques-et-publications/donnees-statistiques/medicament/index.php</a> ; un fichier par semestre, permettant de connaître le volume de boîtes remboursé selon le lieu de dispensation (hôpital ou ville). Les données de la rétrocession hospitalière (Retroced'AM) ne sont pas intégrées dans cette application, bien que disponibles (à une maille annuelle)
+  </li>
+  <li>Les données de l'INPI sont issues du ftp de l'INPI (inscription à la demande, pour obtention d’un identifiant et d’un mot de passe), qui propose de nouvelles données chaque semaine.</li>
+</ul>
+<p><strong>Un retraitement important de ces données source a été nécessaire :</strong></p>
+<ul>
+  <li>Pour passer d'une consommation en nombre de boites à une consommation en nombre d’unités, il a fallu extraire le nombre d’unités par boite des dénominations de produits (dans des formats plus ou moins variés). Certes, il existe une table donnant cette correspondance (
+    <a href="https://gitlab.com/healthdatahub/schema-snds/-/raw/master/nomenclatures/DREES/IR_PHA_R.csv">https://gitlab.com/healthdatahub/schema-snds/-/raw/master/nomenclatures/DREES/IR_PHA_R.csv</a>), mais les données ne sont pas complètes.
+  </li>
+  <li>Concernant les données relatives aux brevets et aux certificats complémentaires de protection (CCP) délivrés par l’INPI, il n’existe pas de jointure immédiate permettant de relier un médicament princeps à son brevet. Au moment du dépôt d’une demande de CCP, le numéro CIS concerné n’est pas renseigné. Deux modes de jointure ont été utilisés :&nbsp;
+    <ol>
+      <li>Par le numéro d’AMM européen (EU/1/…) lorsqu’il était disponible. Cette jointure est exacte</li>
+      <li>Par le nom du CCP, qui correspond aux substances associées dans le médicament. Néanmoins le nom du CCP étant libre, il n’est pas évident de passer du nom du CCP à une liste de substances. Par ailleurs, toutes les substances présentes dans le médicament ne sont pas listées dans le nom du CCP. Il s’en suit que ce matching peut être erroné.</li>
+    </ol>
+  </li>
+</ul>
+<p><strong>En construction</strong> :&nbsp;</p>
+<ul>
+  <li>Ajout de deux logos indiquant les médicaments d’intérêt thérapeutique majeur (MITM) ainsi que le médicaments en vente libre (pour lesquels la consommation réelle est supérieur à la consommation sur ordonnance).</li>
+  <li>Actuellement, la sélection d’une spécialité conduit à l’affichage de la consommation de toute la famille de génériques. Une autre possibilité serait de proposer un affichage de l’ensemble des produits de forme galénique et DCI équivalentes.</li>
+  <li>Un travail sur les prix a été mené, afin de mettre en évidence l’économie que représenterait le glissement de la consommation du princeps au générique.</li>
+  <li>Téléchargement en pdf et xls des données.</li>
+</ul>
+<p>Le code source se trouve sur la page github dédiée à cette application (logo en haut à droite de l’application). N’hésitez pas à y signaler des erreurs.</p>

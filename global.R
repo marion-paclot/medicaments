@@ -57,16 +57,5 @@ denominationProduit <<- tousCIP[1]
 ccp = read.csv('./data/importbdd/ccp.csv', stringsAsFactors = F)
 
 
-# 
-# ### 
-# Base médicament  : Gilenya - CIS : 60728597
-# compo : FINGOLIMOD ou CHLORHYDRATE DE FINGOLIMOD
-# ccp : 
-# 
-#    
-# # 
-# # matchingCIS = subset(matching, Code.CIS == "67520378")
-# # autorisation = unique(matchingCIS$Numéro.Autorisation)
-# # fichiersCCP = unique(matchingCIS$fichier)
-# # datesCIS = subset(datesEvenement, fichier %in% fichiersCCP)
-# # ccpCIS = subset(ccp, fichier %in% fichiersCCP)
+# Texte de la faq
+faq = readLines('faq.html')
