@@ -1,0 +1,11 @@
+
+.Rhistory
+config.txt
+config_serveur.txt
+data/brevet/*
+data/classification/*
+data/importbdd/consommation.csv
+data/importbdd/referentiel.csv
+data/medicAM/*
+data/retrocedAM/*
+IR_PHA_R.csv
