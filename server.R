@@ -189,9 +189,10 @@ shinyServer(function(input, output, session) {
    # ############################################################################
    # ### Encart avec le nom de la famille de génériques
    output$contenuFamille <- renderText({
-      numFamilleProduit =  unique(selection()$referentielProduit$numfamille)
+      numFamilleProduit = unique(selection()$referentielProduit$numfamille)
       nomFamilleProduit = unique(selection()$referentielProduit$nomfamille)
       contenu = nomFamilleProduit
+      print(contenu)
       if (grepl('^HF_', numFamilleProduit)){
          contenu = paste0("Le médicament n'appartient pas à une famille de générique",
                           "\r\n", contenu)
@@ -279,7 +280,35 @@ shinyServer(function(input, output, session) {
       p = ggplotly(p_prov, tooltip = c("text"))
    })
    
+   output$mitm <- renderUI({
+      mitm = selection()$referentielProduit$mitm
+      image = "non_mitm.png"
+      if(any(mitm)){
+         image = "mitm.png"
+      }
+      tags$img(src= image, width = '90px')
+      })
    
+   output$vente_libre <- renderUI({
+      classement = selection()$referentielProduit$condition
+      print(classement)
+      image = "ordo.png"
+      if(any(classement == "vente libre")){
+         image = "non_ordo.png"
+      }
+      tags$img(src= image, width = '90px')
+   })
+   
+   output$acces_direct <- renderUI({
+      acces = selection()$referentielProduit$acces_direct
+      image = "non_acces_direct.png"
+      if(any(acces)){
+         image = "acces_direct"
+      }
+      tags$img(src= image, width = '90px')
+   })
+   
+
    # ############################################################################
    # ### Depense
    # output$depense <- renderPlotly({

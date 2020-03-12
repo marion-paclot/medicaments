@@ -33,12 +33,14 @@ CREATE TABLE public.referentiel
 	nomfamille CHARACTER VARYING,
 	typemed INTEGER, 
 	tri INTEGER,
+	condition CHARACTER VARYING,
 	nomcip CHARACTER VARYING,
 	atc CHARACTER VARYING,
 	nbunite INTEGER,
-	numfamilledci CHARACTER VARYING
-
-)
+	numfamilledci CHARACTER VARYING,
+	acces_direct BOOLEAN ,
+	mitm BOOLEAN 
+	)
 WITH (
     OIDS = FALSE
 ) ;

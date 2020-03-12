@@ -45,28 +45,36 @@ ui <- dashboardPage(
       tags$style(type='text/css', "#contenuFamille {white-space: pre-wrap;
                  font-size: 14px; 
                       font-family:  'Source Sans Pro','Helvetica Neue',Helvetica,Arial,sans-serif;}"),
-      
       tabItems(
         
         # Consommation ============================
         tabItem(
           tabName = "consommation",
           mainPanel(
-             
             width = 12,
-            verbatimTextOutput('contenuFamille'),
-            fluidRow(column(3, radioButtons("individuel_ou_cumul", "Consommation",
+            fluidRow(
+               column(8, verbatimTextOutput('contenuFamille')),
+               column(4, 
+                      div(style="display: inline-block", uiOutput("mitm")),
+                      div(style="display: inline-block", uiOutput("vente_libre")),
+                      div(style="display: inline-block", uiOutput("acces_direct"))
+               )
+               ),
+            br(),
+            fluidRow(
+               column(3, radioButtons("individuel_ou_cumul", "Consommation",
                                    c("Par produit"= "p", "En cumulé"= "c"),
                                    inline = TRUE)),
-            column(3, radioButtons("boite_ou_unite", "Décompte",
+               column(3, radioButtons("boite_ou_unite", "Décompte",
                          c("# boites"= "b", "# unités"= "u"),
                          inline = TRUE)),
-            column(3, radioButtons("volume_ou_pdm", "Affichage",
+               column(3, radioButtons("volume_ou_pdm", "Affichage",
                                    c("Volume"= "volume", "Part de marché"= "pdm"),
                                    inline = TRUE)),
-           column(3, radioButtons("ville_ou_hopital", "Lieu de délivrance",
+               column(3, radioButtons("ville_ou_hopital", "Lieu de délivrance",
                  c("Hôpital"= "h", "Ville"= "v", "Tous" = "hv"),selected = 'hv',
-                 inline = TRUE))),
+                 inline = TRUE))
+               ),
            plotlyOutput("consommation")
           )
         ),

@@ -9,8 +9,6 @@ library(data.table)
 library(foreign)
 library(dplyr)
 
-
-options(shiny.usecairo=T)
 options(digits = 4, scipen=999)
 
 
@@ -50,8 +48,7 @@ options(digits = 4, scipen=999)
 ################################################################################
 ############## consommation
 # Boucle sur les MedicAM mensuels
-fichiersConsommation = list.files("./data/medicAM/", full.names = TRUE, 
-                                  pattern = 'mensuel')
+fichiersConsommation = list.files("./data/medicAM/", full.names = TRUE)
 fichiersConsommation = fichiersConsommation[order(fichiersConsommation)]
 
 consommation = list()
@@ -144,7 +141,7 @@ generiques = read.table("./data/classification/CIS_GENER_bdpm.txt",
 generiques$v = NULL 
 generiques$nomFamille = gsub('équivalant à', '-', generiques$nomFamille)
 generiques$nomFamille = gsub('\\s+', ' ', generiques$nomFamille)
-generiques$nomFamille = gsub('([A-z]),([A-z ])', '\\1\n\\2', generiques$nomFamille)
+#generiques$nomFamille = gsub('([A-z]),([A-z]*)([A-z ])', '\\1\n\\2\\3', generiques$nomFamille)
 generiques$nomFamille = gsub('\n ', '\n', generiques$nomFamille)
 generiques$nomFamille = gsub('\\.$', '', generiques$nomFamille)
 
@@ -163,10 +160,21 @@ cis_bdmp$dateAMM = as.character(as.Date(cis_bdmp$dateAMM, format = "%d/%m/%Y"))
 cis_bdmp$nomCIS = gsub("(.*),(.*)", "\\1", cis_bdmp$denomination)
 
 
+
+################################################################################
+############ PRESCRIPTION 
+prescription = read.table("./data/classification/CIS_CPD_bdpm.txt",
+                          header = F, sep = "\t", fill = T, quote = "",
+                          col.names = c('CIS', 'condition'), stringsAsFactors = F)
+
+
+################################################################################
 ### Jointures
 referentiel = merge(equivalence, cis_bdmp, by = "CIS", all.x = TRUE)
 referentiel = merge(referentiel, generiques, by = "CIS", all.x = TRUE)
-referentiel = merge(referentiel, noms_atc, by = "CIP13", all = FALSE)
+referentiel = merge(referentiel, prescription, by = "CIS", all.x = TRUE)
+referentiel$condition[is.na(referentiel$condition)] = "vente libre"
+referentiel = merge(referentiel, noms_atc, by = "CIP13", all.x = FALSE)
 referentiel$CIS = as.character(referentiel$CIS)
 referentiel$CIP13 = as.character(referentiel$CIP13)
 
@@ -323,6 +331,26 @@ for (combinaison in combinaisons$Var1){
    #subset(referentiel, CIS %in% cis_combinaison)
 }
 
+################################################################################
+############ Médicaments en accès direct
+fichiers = list.files("./data/classification/", full.names = TRUE)
+fichier_acces = fichiers[grepl('acces', fichiers, ignore.case = T)]
+
+classeur = loadWorkbook(fichier_acces)
+feuilles = getSheets(classeur)
+feuilleAllo = which(grepl('Allopathie', feuilles, ignore.case = T))
+allopathie = readWorksheet(classeur, feuilleAllo)
+debut = min(which(grepl('Nom', allopathie[,1])))
+allopathie = readWorksheet(classeur, feuilleAllo, startRow = debut+1)
+colnames(allopathie) = gsub('.*CIP.*', 'CIP', colnames(allopathie))
+allopathie = data.frame('CIP13' = allopathie[, 'CIP'])
+
+referentiel$acces_direct = referentiel$CIP13 %in% allopathie$CIP13
+
+################################################################################
+############ MITM - médicaments d'intérêt thérapeutique majeur
+mitm = read.csv2('./data/classification/liste_mitm.csv', stringsAsFactors = F) 
+referentiel$mitm = referentiel$ATC %in% mitm$code
 
 
 
@@ -334,11 +362,10 @@ for (combinaison in combinaisons$Var1){
 dir.create('data/importbdd/')
 
 # Point décimal et séparateur virgule
-write.csv(referentiel, './data/importbdd/medicaments.csv', 
+write.csv(referentiel, './data/importbdd/referentiel.csv', 
          fileEncoding = 'UTF-8', row.names = F, quote = TRUE)
 write.csv(consommation, './data/importbdd/consommation.csv', 
           fileEncoding = 'UTF-8', row.names = F, quote = TRUE)
-
 rm(list = ls()[! grepl('consommation|referentiel', ls())]) # A retirer plus tard
 
 

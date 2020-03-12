@@ -55,7 +55,7 @@ tousCIP = tousCIP[!is.na(tousCIP)]
 denominationProduit <<- tousCIP[1]
 
 ccp = read.csv('./data/importbdd/ccp.csv', stringsAsFactors = F)
-
+ 
 
 # Texte de la faq
 faq = readLines('faq.html')
