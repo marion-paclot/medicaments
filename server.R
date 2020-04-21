@@ -148,7 +148,7 @@ shinyServer(function(input, output, session) {
       ## Doc number pour les CCP
       CIS = referentielFamille$cis
       doc_number = ccp$doc_number[ccp$CIS %in% CIS]
-                                  
+      test <<- consoEnrichie                           
       return(list(
          referentielProduit = referentielProduit,
          referentielFamille = referentielFamille,
