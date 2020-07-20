@@ -1,5 +1,5 @@
 
-**Application permettant de visualiser la consommation d'un médicaments (et d'une famille de génériques) au cours du temps.**
+**Application permettant de visualiser la consommation d'un médicament (et d'une famille de génériques) au cours du temps.**
 
 Les données utilisées sont les suivantes : 
 - référentiel des médicaments de l'ANSM : http://base-donnees-publique.medicaments.gouv.fr/telechargement.php
