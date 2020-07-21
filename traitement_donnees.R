@@ -4,7 +4,6 @@ library(XLConnect)
 library(ggplot2)
 library(plyr)
 library(tidyr)
-library(reshape)
 library(data.table)
 library(foreign)
 library(dplyr)
@@ -77,40 +76,47 @@ for (fichier in fichiersConsommation) {
   colnames(donnees) = gsub("(Montant-remboursé--)(.*)", "mt_\\2-01", colnames(donnees))
   colnames(donnees) = gsub("(Base-de-remboursement-)(.*)", "base_\\2-01", colnames(donnees))
   donnees$NOM_CIP13 = toupper(donnees$NOM_CIP13)
-  donnees = subset(donnees, CIP13 != '3,40095E+12')
+  donnees = subset(donnees, !is.na(NOM_CIP13))
   
-  colonnes_mens = colnames(donnees)[grepl("nb_|mt_|base_", colnames(donnees))]
+  minMois = gsub('nb_', '', min(colnames(donnees)[grepl('nb', colnames(donnees))]))
+  nom_atc_prov = donnees[, c('CIP13', 'NOM_CIP13', 'ATC')]
+  nom_atc_prov$mois = minMois
+  noms_atc[[length(noms_atc)+1]] = unique(nom_atc_prov)
   
-  consommation[[length(consommation)+1]] = donnees[, c("CIP13", "lieu", colonnes_mens)]
-  noms_atc[[length(noms_atc)+1]] = unique(donnees[, c('CIP13', 'NOM_CIP13', 'ATC')])
   
+  # Reshape
+  col_mt = colnames(donnees)[grepl('mt|Montant', colnames(donnees),ignore.case = T)]
+  col_nb = colnames(donnees)[grepl('nb', colnames(donnees))]
+  col_base = colnames(donnees)[grepl('base', colnames(donnees))]
+  mois = unique(gsub('.*_(.*)', '\\1', col_nb))
+  mois = mois[! mois %in% c('CIP13', 'lieu')]
+  
+  donnees = reshape(donnees[, c('CIP13', 'lieu', col_nb, col_mt, col_base)], 
+                  idvar = c('CIP13', 'lieu'), 
+                         v.names = c('nb', 'mt', 'base'),
+                         varying = list(col_nb, col_mt, col_base),
+                         timevar = 'mois', times = mois,
+                         new.row.names = NULL , direction = "long")
+  row.names(donnees) = NULL
+  
+  donnees = subset(donnees, nb > 0)
+  consommation[[length(consommation)+1]] = donnees
+  print(head(donnees))
   donnees = NULL
-}
+  }
 
 # Consommation par CIP13
-consommation = Reduce(function(x,y) {merge(x,y, all = TRUE)}, consommation)
-consommation = subset(consommation, !is.na(as.numeric(CIP13))) # Ne garder que les lignes de médicaments
-
-col_mt = colnames(consommation)[grepl('mt', colnames(consommation))]
-col_nb = colnames(consommation)[grepl('nb', colnames(consommation))]
-col_base = colnames(consommation)[grepl('base', colnames(consommation))]
-mois = unique(gsub('.*_(.*)', '\\1', colnames(consommation)))
-mois = mois[! mois %in% c('CIP13', 'lieu')]
-
-consommation = reshape(consommation, idvar = c('CIP13', 'lieu'), 
-                        v.names = c('nb', 'mt', 'base'),
-                       varying = list(col_nb, col_mt, col_base),
-                       timevar = 'mois', times = mois,
-                       new.row.names = NULL , direction = "long")
-row.names(consommation) = NULL
-
+consommation = Reduce(rbind.data.frame, consommation)
+consommation$mt = round(consommation$mt, digits = 2)
+consommation$base = round(consommation$base, digits = 2)
 
 # Nom des produits et code ATC. On garde le dernier libellé -------------
 noms_atc = Reduce(rbind.data.frame, noms_atc)
 noms_atc = data.table(noms_atc)
+noms_atc = noms_atc[order(noms_atc$mois),]
 noms_atc = noms_atc[,.(NOM_CIP13 = NOM_CIP13[.N], ATC = ATC[.N]), by = CIP13]
 noms_atc = data.frame(noms_atc)
-noms_atc = noms_atc[!is.na(as.numeric(noms_atc$CIP13)),]
+noms_atc$mois = NULL
 colnames(noms_atc) = c('CIP13', 'nomCIP', 'ATC')
 
 
@@ -120,7 +126,7 @@ colEquivalence = c("CIS", "CIP7", "libelle", "statut", "typeAction",
                    "dateAction", "CIP13", "agrement", "taux", 
                    "prixHorsHono", "prixTotal", "honoraires", "infos")
 equivalence = read.table("./data/classification/CIS_CIP_bdpm.txt", header = F,
-                         sep = "\t", quote = "", fill = F, col.names = colEquivalence)
+                         sep = "\t", quote = "", fill = T, col.names = colEquivalence)
 
 # Nettoyage des colonnes chiffres
 for (col in c("prixHorsHono", "prixTotal", "honoraires")){

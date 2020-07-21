@@ -35,7 +35,9 @@ ui <- dashboardPage(
       menuItem("A propos", tabName = "faq", icon = icon("question-circle"))
       
       
-      )
+      ),
+    fluidPage(downloadButton("downloadData", "Télécharger les données", 
+                   style="color: #fff; background-color: #337ab7; border-color: #2e6da4"))
     ),
   
   dashboardBody(
@@ -95,6 +97,7 @@ ui <- dashboardPage(
                      htmlOutput("notice")
            )
         ),
+        
         # FAQ  ============================
         tabItem(
            tabName = "faq",

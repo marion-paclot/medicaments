@@ -79,6 +79,17 @@ shinyServer(function(input, output, session) {
                                         .con = con)
       consommationFamille <- dbGetQuery(con, reqConsommationFamille)
       
+      # Ajout des dates manquantes (ie conso à 0 ou négatives)
+      req_allDates = glue_sql("SELECT DISTINCT cip13, lieu
+                                       FROM consommation 
+                                        WHERE cip13 IN ({cip13*});",
+                                        cip13 = referentielFamille$cip13, 
+                                        .con = con)
+      allDates <- dbGetQuery(con, req_allDates)
+      allDates = merge(allDates, listeMois)
+      colnames(allDates) = c('cip13', 'lieu', 'mois')
+      consommationFamille = merge(consommationFamille, allDates, all.y = TRUE)
+      consommationFamille[is.na(consommationFamille)] = 0
       
       #########################################################################
       ###### Retraitement des données 
@@ -87,7 +98,8 @@ shinyServer(function(input, output, session) {
       consommationFamille$lieu = factor(consommationFamille$lieu, 
                                         levels = c("Hopital", "Ville"))
       consommationFamille$mois = factor(consommationFamille$mois)
-      
+
+
       # Identification des produits qui ont des doublons (deux formes identiques sauf le cip13)
       # exemple RAMIPRIL ARROW LAB 5 MG CPR SEC 90
       # Pour les CIP
@@ -309,6 +321,21 @@ shinyServer(function(input, output, session) {
    })
    
 
+   output$downloadData <- downloadHandler(
+      filename = 'Donnees_medicaments.xlsx',
+      content = function(file) {
+         conso = selection()$consommationFamille
+         produit = selection()$referentielProduit
+         donnees_conso = merge(produit, 
+                               conso, by = "cip13", all = TRUE)
+         for (col in c('numfamille', 'nomfamille', 'typemed', 'nomcip',	'numfamilledci')){
+            donnees_conso[, col] = NULL
+         }
+         write.xlsx(donnees_conso, file, sheetName="consommation",
+                     col.names=TRUE, row.names=FALSE, append=FALSE)
+      }
+   )
+   
    # ############################################################################
    # ### Depense
    # output$depense <- renderPlotly({

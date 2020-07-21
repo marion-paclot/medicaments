@@ -17,6 +17,7 @@ library(askpass)
 
 library(XML)
 library(RCurl)
+library(xlsx)
 
 options(digits = 4, scipen=999)
 options(encoding = 'utf-8')
@@ -53,6 +54,10 @@ tousCIP = tousCIP$denomination
 tousCIP = tousCIP[!is.na(tousCIP)]
 
 denominationProduit <<- tousCIP[1]
+
+# Mois disponibles - on pre
+listeMois = dbGetQuery(con, "SELECT DISTINCT mois from consommation
+                        ORDER BY mois;")$mois
 
 ccp = read.csv('./data/importbdd/ccp.csv', stringsAsFactors = F)
  
