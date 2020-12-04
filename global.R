@@ -5,8 +5,9 @@ library(grid)
 library(gridExtra)
 library(plyr)
 library(Cairo)
-library(plotly)
+
 library(ggplot2)
+library(plotly)
 library(scales)
 library(data.table)
 

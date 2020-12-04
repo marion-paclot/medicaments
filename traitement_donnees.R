@@ -77,6 +77,8 @@ for (fichier in fichiersConsommation) {
   colnames(donnees) = gsub("(Base-de-remboursement-)(.*)", "base_\\2-01", colnames(donnees))
   donnees$NOM_CIP13 = toupper(donnees$NOM_CIP13)
   donnees = subset(donnees, !is.na(NOM_CIP13))
+  donnees$CIP13[grepl('Hom', donnees$CIP13, ignore.case = T)] = 'Homéopathie'
+  donnees$NOM_CIP13[grepl('Hom', donnees$NOM_CIP13, ignore.case = T)] = 'Homéopathie'
   
   minMois = gsub('nb_', '', min(colnames(donnees)[grepl('nb', colnames(donnees))]))
   nom_atc_prov = donnees[, c('CIP13', 'NOM_CIP13', 'ATC')]
@@ -180,7 +182,7 @@ referentiel = merge(equivalence, cis_bdmp, by = "CIS", all.x = TRUE)
 referentiel = merge(referentiel, generiques, by = "CIS", all.x = TRUE)
 referentiel = merge(referentiel, prescription, by = "CIS", all.x = TRUE)
 referentiel$condition[is.na(referentiel$condition)] = "vente libre"
-referentiel = merge(referentiel, noms_atc, by = "CIP13", all.x = FALSE)
+referentiel = merge(referentiel, noms_atc, by = "CIP13", all.x = FALSE) # fait disparaitre les produits non consommés
 referentiel$CIS = as.character(referentiel$CIS)
 referentiel$CIP13 = as.character(referentiel$CIP13)
 
@@ -359,13 +361,29 @@ mitm = read.csv2('./data/classification/liste_mitm.csv', stringsAsFactors = F)
 referentiel$mitm = referentiel$ATC %in% mitm$code
 
 
+######### Ajout des données relatives à l'homéopathie
 
+homeo = read.csv(text = paste0(colnames(referentiel), collapse = ','))
+homeo[1,] = NA
 
+homeo[, c('CIP13', 'libelle', 'denomination', 'nomCIS', 'numFamille', 'nomCIP')] = 'Homéopathie'
+homeo['CIS'] = '00000000'
+homeo['CIP7'] = '0000000'
+homeo$nomFamille = "Ensemble des spécialités homéopathiques sans distinction de produit."
+homeo$typeMed = 0
+homeo$tri = 1
+homeo$ATC = 'W99'
+homeo$nbUnite = 1
+homeo$acces_direct = FALSE
+homeo$mitm = FALSE
+homeo$condition = 'vente libre'
+
+referentiel = rbind.data.frame(referentiel, homeo)
 
 ################################################################################
 #Sauvegarde des bases
 ################################################################################
-dir.create('data/importbdd/')
+dir.create('data/importbdd/', showWarnings = F)
 
 # Point décimal et séparateur virgule
 write.csv(referentiel, './data/importbdd/referentiel.csv', 

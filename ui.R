@@ -1,4 +1,4 @@
-
+library(plotly)
 library(shinydashboard)
 ui <- dashboardPage(
    title="Médicaments", # Titre de l'onglet
@@ -54,7 +54,7 @@ ui <- dashboardPage(
         # Consommation ============================
         tabItem(
           tabName = "consommation",
-          mainPanel(
+          fluidPage(
             width = 12,
             fluidRow(
                column(8, verbatimTextOutput('contenuFamille')),

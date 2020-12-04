@@ -52,9 +52,9 @@ for (url in urls){
       nom = gsub('.*(Medic_AM_mensuel.*zip).*', '\\1', lien)
       nomComplet = paste0('data/medicAM/', nom)
       millesime = gsub('.*(20[0-9]{2}).*([1-2]{1}).*', '\\1\\2', nom)
-      if (millesime %in% millesimes){ # Fichier déjà présent
-         next()
-      }
+      #if (millesime %in% millesimes){ # Fichier déjà présent
+         #next()
+      #}
 
       # Chargement
       download.file(paste0(url_ameli, lien), nomComplet)
@@ -80,10 +80,10 @@ for (url in urls){
 # Au 1er mars 2020, il s'agit de la version de 2017
 ################################################################################
 
-urlJo = "https://www.legifrance.gouv.fr/affichTexte.do?cidTexte=JORFTEXT000032958454&categorieLien=id"
+urlJo = "https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000032958460"
 page = htmlParse(getURL(urlJo), useInternal = TRUE)
 
-atc = xpathApply(page, "//div[@class='article']/p", function(x)
+atc = xpathApply(page, "//div[@class='content']/p", function(x)
    xpathSApply(x,".//text()", xmlValue)
 )
 
